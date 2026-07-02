@@ -15,6 +15,8 @@
       --muted: #6b6b6b;
       --rule: #e4e4e4;
       --dot: 26, 26, 26;
+      --tint: 0, 0, 0;   /* set by JS to reflect time of day */
+      --tint-a: 0;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -32,8 +34,11 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--bg);
+      background:
+        radial-gradient(130% 90% at 50% 0%, rgba(var(--tint), var(--tint-a)), transparent 70%),
+        var(--bg);
       color: var(--fg);
+      transition: background-color 1s ease;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
@@ -86,14 +91,25 @@
   </main>
 
   <script>
-    // --- Time-aware greeting (uses the visitor's own clock; nothing is stored) ---
+    // --- Time-aware greeting + tint (uses the visitor's own clock; nothing is stored) ---
     (function () {
       var h = new Date().getHours();
+
       var msg = h < 5 ? "Hello, night owl"
               : h < 12 ? "Good morning"
               : h < 18 ? "Good afternoon"
               : "Good evening";
       document.getElementById("greeting").textContent = msg;
+
+      // A faint wash of colour from the top that shifts across the day.
+      var tint = h < 5  ? { c: "70, 90, 170",  a: 0.10 }   // deep night — indigo
+               : h < 11 ? { c: "120, 175, 225", a: 0.09 }  // morning — cool blue
+               : h < 16 ? { c: "255, 235, 205", a: 0.07 }  // midday — soft warm light
+               : h < 20 ? { c: "240, 150, 90",  a: 0.11 }  // dusk — amber
+               :          { c: "90, 100, 180",  a: 0.10 }; // late evening — twilight
+      var root = document.documentElement.style;
+      root.setProperty("--tint", tint.c);
+      root.setProperty("--tint-a", String(tint.a));
     })();
 
     // --- Generative background: a slow, drifting field of faint dots ---
@@ -130,19 +146,48 @@
         }
       }
 
+      var LINK = 130;          // max distance at which two dots are joined
+      var LINK2 = LINK * LINK;
+
       function draw() {
         ctx.clearRect(0, 0, W, H);
+
+        // Move every dot, wrapping softly around the edges.
         for (var i = 0; i < dots.length; i++) {
           var d = dots[i];
           d.x += d.vx;
           d.y += d.vy;
           if (d.x < 0) d.x += W; else if (d.x > W) d.x -= W;
           if (d.y < 0) d.y += H; else if (d.y > H) d.y -= H;
+        }
+
+        // Constellation: faint lines between dots that drift close together.
+        ctx.lineWidth = 1;
+        for (var a = 0; a < dots.length; a++) {
+          for (var b = a + 1; b < dots.length; b++) {
+            var dx = dots[a].x - dots[b].x;
+            var dy = dots[a].y - dots[b].y;
+            var d2 = dx * dx + dy * dy;
+            if (d2 < LINK2) {
+              var alpha = (1 - Math.sqrt(d2) / LINK) * 0.12;
+              ctx.strokeStyle = "rgba(" + color + "," + alpha + ")";
+              ctx.beginPath();
+              ctx.moveTo(dots[a].x, dots[a].y);
+              ctx.lineTo(dots[b].x, dots[b].y);
+              ctx.stroke();
+            }
+          }
+        }
+
+        // Dots on top of the lines.
+        for (var j = 0; j < dots.length; j++) {
+          var p = dots[j];
           ctx.beginPath();
-          ctx.fillStyle = "rgba(" + color + "," + d.a + ")";
-          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(" + color + "," + p.a + ")";
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
           ctx.fill();
         }
+
         if (!reduce) requestAnimationFrame(draw);
       }
 
