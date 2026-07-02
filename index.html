@@ -14,6 +14,7 @@
       --fg: #1a1a1a;
       --muted: #6b6b6b;
       --rule: #e4e4e4;
+      --dot: 26, 26, 26;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -21,6 +22,7 @@
         --fg: #ededed;
         --muted: #8a8a8a;
         --rule: #262628;
+        --dot: 237, 237, 237;
       }
     }
     * { box-sizing: border-box; }
@@ -36,6 +38,15 @@
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      overflow: hidden;
+    }
+    #bg {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      display: block;
     }
     main {
       width: 100%;
@@ -49,6 +60,13 @@
       font-weight: 600;
       letter-spacing: -0.02em;
     }
+    .greeting {
+      margin: 0 0 0.4rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+      letter-spacing: 0.01em;
+      min-height: 1.4em;
+    }
     .tagline {
       margin: 0.75rem 0 0;
       color: var(--muted);
@@ -61,29 +79,88 @@
       background: var(--rule);
       border: 0;
     }
-    footer {
-      position: fixed;
-      bottom: 1.25rem;
-      left: 0;
-      right: 0;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-    a {
-      color: inherit;
-      text-decoration: none;
-      border-bottom: 1px solid var(--rule);
-      transition: border-color 0.15s ease;
-    }
-    a:hover { border-color: var(--muted); }
   </style>
 </head>
 <body>
+  <canvas id="bg" aria-hidden="true"></canvas>
   <main>
+    <p class="greeting" id="greeting"></p>
     <h1>David Webster</h1>
     <p class="tagline">This is my corner of the web.</p>
     <hr class="rule">
   </main>
+
+  <script>
+    // --- Time-aware greeting (uses the visitor's own clock; nothing is stored) ---
+    (function () {
+      var h = new Date().getHours();
+      var msg = h < 5 ? "Hello, night owl"
+              : h < 12 ? "Good morning"
+              : h < 18 ? "Good afternoon"
+              : "Good evening";
+      document.getElementById("greeting").textContent = msg;
+    })();
+
+    // --- Generative background: a slow, drifting field of faint dots ---
+    (function () {
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var canvas = document.getElementById("bg");
+      var ctx = canvas.getContext("2d");
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var dots = [];
+      var W, H;
+
+      function dotColor() {
+        return getComputedStyle(document.documentElement).getPropertyValue("--dot").trim();
+      }
+      var color = dotColor();
+
+      function resize() {
+        W = canvas.clientWidth;
+        H = canvas.clientHeight;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        var target = Math.round((W * H) / 22000); // density scales with viewport
+        dots = [];
+        for (var i = 0; i < target; i++) {
+          dots.push({
+            x: Math.random() * W,
+            y: Math.random() * H,
+            r: Math.random() * 1.6 + 0.4,
+            vx: (Math.random() - 0.5) * 0.15,
+            vy: (Math.random() - 0.5) * 0.15,
+            a: Math.random() * 0.25 + 0.05
+          });
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        for (var i = 0; i < dots.length; i++) {
+          var d = dots[i];
+          d.x += d.vx;
+          d.y += d.vy;
+          if (d.x < 0) d.x += W; else if (d.x > W) d.x -= W;
+          if (d.y < 0) d.y += H; else if (d.y > H) d.y -= H;
+          ctx.beginPath();
+          ctx.fillStyle = "rgba(" + color + "," + d.a + ")";
+          ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (!reduce) requestAnimationFrame(draw);
+      }
+
+      resize();
+      window.addEventListener("resize", resize);
+      // Re-read the dot colour if the OS theme flips while the page is open.
+      if (window.matchMedia) {
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+          color = dotColor();
+        });
+      }
+      draw(); // draws once (static) if reduced motion is preferred, otherwise animates
+    })();
+  </script>
 </body>
 </html>
