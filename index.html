@@ -54,12 +54,6 @@
       padding: 2rem;
       text-align: center;
     }
-    h1 {
-      margin: 0;
-      font-size: clamp(2rem, 8vw, 3rem);
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
     .greeting {
       margin: 0 0 0.4rem;
       color: var(--muted);
@@ -68,9 +62,11 @@
       min-height: 1.4em;
     }
     .tagline {
-      margin: 0.75rem 0 0;
-      color: var(--muted);
-      font-size: 1.05rem;
+      margin: 0;
+      color: var(--fg);
+      font-size: clamp(1.4rem, 5vw, 2rem);
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
     .rule {
       width: 3rem;
@@ -85,8 +81,7 @@
   <canvas id="bg" aria-hidden="true"></canvas>
   <main>
     <p class="greeting" id="greeting"></p>
-    <h1>David Webster</h1>
-    <p class="tagline">This is my corner of the web.</p>
+    <p class="tagline">This is David Webster's corner of the web.</p>
     <hr class="rule">
   </main>
 
